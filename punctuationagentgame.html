@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="zh-HK">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>標點符號特工隊：書名號與專名號大作戰</title>
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- FontAwesome Icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- Tone.js for Web Audio Sound Effects -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/tone/14.8.49/Tone.js"></script>
+    <!-- Google Fonts: standard playful font fallback -->
+    <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@500;700;900&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Zen Maru Gothic', 'Microsoft JhengHei', 'PingFang HK', sans-serif;
+            background: linear-gradient(135deg, #e0f2fe 0%, #f0f9ff 100%);
+            user-select: none;
+            -webkit-user-select: none;
+        }
+
+        /* 專名號樣式：底線 */
+        .mark-proper {
+            border-bottom: 4px solid #ef4444;
+            background-color: #fee2e2;
+            color: #991b1b;
+            border-radius: 4px 4px 0 0;
+            padding: 2px 4px;
+            font-weight: bold;
+        }
+
+        /* 書名號樣式：加《 》視覺裝飾 */
+        .mark-book {
+            background-color: #dbeafe;
+            color: #1e40af;
+            border-radius: 6px;
+            padding: 2px 6px;
+            font-weight: bold;
+            position: relative;
+        }
+
+        .mark-book::before {
+            content: "《";
+            color: #2563eb;
+            font-weight: bold;
+            margin-right: 1px;
+        }
+
+        .mark-book::after {
+            content: "》";
+            color: #2563eb;
+            font-weight: bold;
+            margin-left: 1px;
+        }
+
+        /* 可點擊詞語塊 */
+        .word-token {
+            transition: all 0.2s ease;
+            cursor: pointer;
+            display: inline-block;
+            margin: 2px 1px;
+            padding: 4px 6px;
+            border-radius: 8px;
+            font-size: 1.35rem;
+            line-height: 1.6;
+        }
+
+        .word-token:hover {
+            transform: translateY(-2px);
+            background-color: #f3f4f6;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+
+        /* 工具卡片被選取 */
+        .tool-active {
+            ring: 4px;
+            transform: scale(1.05);
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+        }
+
+        /* 星星閃爍動畫 */
+        @keyframes starBounce {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.3) rotate(15deg); }
+        }
+
+        .star-anim {
+            animation: starBounce 0.6s ease-in-out infinite;
+        }
+
+        /* 慶祝彩色紙花爆發動畫 */
+        @keyframes confettiFall {
+            0% { transform: translateY(-100%) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        .confetti {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            pointer-events: none;
+            z-index: 100;
+            animation: confettiFall 3s linear forwards;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col justify-between text-gray-800">
+
+    <!-- 頂部導覽與得分欄 -->
+    <header class="bg-white/90 backdrop-blur border-b border-blue-100 sticky top-0 z-30 px-4 py-3 shadow-sm">
+        <div class="max-w-4xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-3">
+                <div class="w-11 h-11 bg-blue-600 text-white rounded-2xl flex items-center justify-center text-xl shadow-md">
+                    <i class="fa-solid fa-user-secret"></i>
+                </div>
+                <div>
+                    <h1 class="font-black text-lg md:text-xl text-blue-900 leading-tight">標點符號特工隊</h1>
+                    <p class="text-xs text-blue-500 font-bold">書名號與專名號大作戰</p>
+                </div>
+            </div>
+
+            <!-- 右側計分與秘笈按鈕 -->
+            <div class="flex items-center gap-3 md:gap-5">
+                <div class="flex items-center gap-1.5 bg-amber-50 border border-amber-200 px-3 py-1.5 rounded-full shadow-inner">
+                    <i class="fa-solid fa-star text-amber-500 text-lg star-icon"></i>
+                    <span id="score-display" class="font-extrabold text-amber-700 text-lg">0</span>
+                </div>
+
+                <button id="btn-secret-book" onclick="openModal('modal-secret')" class="flex items-center gap-1.5 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 px-3 py-1.5 rounded-full transition font-bold text-sm">
+                    <i class="fa-solid fa-book-open text-indigo-500"></i>
+                    <span>標點秘笈</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <!-- 主遊戲區域 -->
+    <main class="max-w-4xl w-full mx-auto p-4 my-2 flex-grow flex flex-col justify-center">
+
+        <!-- 遊戲主卡片 -->
+        <div class="bg-white rounded-3xl shadow-xl border-4 border-blue-200 p-5 md:p-8 relative overflow-hidden">
+            
+            <!-- 關卡標頭與進度 -->
+            <div class="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-6 border-b border-gray-100 pb-4">
+                <div>
+                    <span id="level-badge" class="bg-blue-100 text-blue-800 text-xs font-black px-3 py-1 rounded-full uppercase tracking-wider">
+                        第一關
+                    </span>
+                    <h2 id="level-title" class="text-xl md:text-2xl font-black text-gray-800 mt-1">
+                        專名號大搜查
+                    </h2>
+                </div>
+                <!-- 進度條 -->
+                <div class="w-full md:w-48 bg-gray-100 rounded-full h-3.5 overflow-hidden p-0.5 border border-gray-200">
+                    <div id="progress-bar" class="bg-gradient-to-r from-blue-500 to-indigo-600 h-full rounded-full transition-all duration-500 w-0"></div>
+                </div>
+            </div>
+
+            <!-- 特工隊長提示與題目指示 -->
+            <div class="flex items-start gap-3 bg-blue-50/80 rounded-2xl p-4 mb-6 border border-blue-100">
+                <div class="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center shrink-0 text-lg font-bold shadow">
+                    🕵️‍♂️
+                </div>
+                <div>
+                    <div class="font-bold text-blue-900 text-sm md:text-base" id="agent-instruction">
+                        特工隊長指示：請挑選正確工具，並點擊句子中適當的詞語！
+                    </div>
+                    <p class="text-xs text-blue-600 mt-0.5">點擊下方工具後，再點擊句子中的詞語即可標記。</p>
+                </div>
+            </div>
+
+            <!-- 題目區域 -->
+            <div id="question-card" class="bg-slate-50 rounded-2xl p-6 min-h-[160px] flex items-center justify-center border-2 border-dashed border-slate-200 mb-6 relative">
+                <div id="sentence-container" class="flex flex-wrap items-center justify-center gap-1 text-center">
+                    <!-- 題目動態渲染於此 -->
+                </div>
+            </div>
+
+            <!-- 工具列 (工具選擇) -->
+            <div class="mb-6">
+                <p class="text-xs font-bold text-gray-400 uppercase tracking-wider mb-2 text-center">選擇你的裝備工具</p>
+                <div class="grid grid-cols-3 gap-3 max-w-md mx-auto">
+                    <!-- 專名號工具 -->
+                    <button id="tool-proper" onclick="selectTool('proper')" class="tool-btn bg-white border-2 border-red-300 hover:border-red-500 text-red-600 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 transition shadow-sm hover:shadow">
+                        <span class="text-xl font-extrabold underline decoration-red-500 decoration-4 underline-offset-4">＿＿</span>
+                        <span class="text-xs font-bold mt-1">🔴 專名號</span>
+                    </button>
+
+                    <!-- 書名號工具 -->
+                    <button id="tool-book" onclick="selectTool('book')" class="tool-btn bg-white border-2 border-blue-300 hover:border-blue-500 text-blue-600 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 transition shadow-sm hover:shadow">
+                        <span class="text-lg font-black">《 》</span>
+                        <span class="text-xs font-bold mt-1">🔵 書名號</span>
+                    </button>
+
+                    <!-- 橡皮擦 -->
+                    <button id="tool-eraser" onclick="selectTool('eraser')" class="tool-btn bg-white border-2 border-gray-300 hover:border-gray-500 text-gray-600 p-3 rounded-2xl flex flex-col items-center justify-center gap-1 transition shadow-sm hover:shadow">
+                        <span class="text-xl">🧽</span>
+                        <span class="text-xs font-bold mt-1">橡皮擦</span>
+                    </button>
+                </div>
+            </div>
+
+            <!-- 操作與核對按鈕 -->
+            <div class="flex items-center justify-center gap-4">
+                <button id="btn-reset" onclick="resetCurrentQuestion()" class="bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold px-5 py-3 rounded-xl transition flex items-center gap-2 text-sm">
+                    <i class="fa-solid fa-rotate-right"></i> 重來
+                </button>
+                <button id="btn-submit" onclick="checkAnswer()" class="bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-extrabold px-8 py-3 rounded-xl transition shadow-lg hover:shadow-xl transform active:scale-95 flex items-center gap-2 text-base">
+                    <i class="fa-solid fa-paper-plane"></i> 提交核對
+                </button>
+            </div>
+
+        </div>
+    </main>
+
+    <!-- 頁尾資訊 -->
+    <footer class="text-center py-3 text-xs text-blue-400 font-medium">
+        標點符號特工隊 ‧ 香港小二中文科互動學習輔助工具
+    </footer>
+
+    <!-- 反饋彈窗 (Modal) -->
+    <div id="modal-feedback" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-md w-full p-6 text-center shadow-2xl border-4 border-white transform transition-all scale-95 opacity-0 duration-300" id="feedback-card">
+            
+            <div id="feedback-icon-container" class="w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-inner">
+                <!-- 圖示與顏色由 JS 決定 -->
+            </div>
+
+            <h3 id="feedback-title" class="text-2xl font-black mb-2 text-gray-800">
+                <!-- 標題 -->
+            </h3>
+
+            <p id="feedback-msg" class="text-gray-600 font-bold mb-4 text-sm md:text-base leading-relaxed">
+                <!-- 說明訊息 -->
+            </p>
+
+            <div id="feedback-explain" class="bg-amber-50 text-amber-900 border border-amber-200 rounded-xl p-3 text-xs text-left mb-6 leading-relaxed">
+                <!-- 詳細知識說解 -->
+            </div>
+
+            <button id="btn-next" onclick="nextQuestion()" class="w-full bg-blue-600 hover:bg-blue-700 text-white font-black py-3 rounded-xl shadow-lg transition text-base flex items-center justify-center gap-2">
+                <span>下一題</span>
+                <i class="fa-solid fa-arrow-right"></i>
+            </button>
+        </div>
+    </div>
+
+    <!-- 標點秘笈彈窗 -->
+    <div id="modal-secret" class="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border-4 border-indigo-200 relative max-h-[90vh] overflow-y-auto">
+            
+            <button onclick="closeModal('modal-secret')" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600 text-xl font-bold w-8 h-8 rounded-full flex items-center justify-center">
+                <i class="fa-solid fa-xmark"></i>
+            </button>
+
+            <div class="flex items-center gap-3 mb-4">
+                <div class="w-10 h-10 bg-indigo-600 text-white rounded-2xl flex items-center justify-center text-lg">
+                    <i class="fa-solid fa-book"></i>
+                </div>
+                <h3 class="text-xl font-black text-indigo-950">標點符號秘笈（記憶口訣）</h3>
+            </div>
+
+            <div class="space-y-4 text-sm">
+                <!-- 專名號說明 -->
+                <div class="bg-red-50 border border-red-200 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 text-red-700 font-black text-base mb-1">
+                        <span class="text-xl">🔴</span> 專名號（底線 ＿＿）
+                    </div>
+                    <p class="text-red-900 font-bold mb-2">口訣：人名地名國家名，腳下劃條小直線！</p>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1 text-xs">
+                        <li><strong>人名</strong>：<span class="mark-proper">陳小明</span>、<span class="mark-proper">李小龍</span></li>
+                        <li><strong>地名</strong>：<span class="mark-proper">香港</span>、<span class="mark-proper">東京</span></li>
+                        <li><strong>國名</strong>：<span class="mark-proper">中國</span>、<span class="mark-proper">日本</span></li>
+                        <li><strong>機構/公園名</strong>：<span class="mark-proper">香港太空館</span></li>
+                    </ul>
+                </div>
+
+                <!-- 書名號說明 -->
+                <div class="bg-blue-50 border border-blue-200 rounded-2xl p-4">
+                    <div class="flex items-center gap-2 text-blue-700 font-black text-base mb-1">
+                        <span class="text-xl">🔵</span> 書名號（《 》）
+                    </div>
+                    <p class="text-blue-900 font-bold mb-2">口訣：書本文章電影名，兩側穿上小雙括！</p>
+                    <ul class="list-disc list-inside text-gray-700 space-y-1 text-xs">
+                        <li><strong>書名</strong>：<span class="mark-book">三國演義</span>、<span class="mark-book">伊索寓言</span></li>
+                        <li><strong>篇名/詩名</strong>：<span class="mark-book">靜夜思</span></li>
+                        <li><strong>電影/動畫名</strong>：<span class="mark-book">獅子王</span></li>
+                    </ul>
+                </div>
+            </div>
+
+            <button onclick="closeModal('modal-secret')" class="w-full mt-5 bg-indigo-600 hover:bg-indigo-700 text-white font-black py-2.5 rounded-xl shadow transition">
+                明白！繼續挑戰
+            </button>
+        </div>
+    </div>
+
+    <!-- 通關榮譽徽章彈窗 -->
+    <div id="modal-badge" class="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 hidden">
+        <div class="bg-gradient-to-b from-amber-50 to-white rounded-3xl max-w-md w-full p-8 text-center shadow-2xl border-4 border-amber-300 relative overflow-hidden">
+            
+            <div class="absolute -top-10 -left-10 w-32 h-32 bg-amber-200/50 rounded-full blur-xl"></div>
+            <div class="absolute -bottom-10 -right-10 w-32 h-32 bg-yellow-300/50 rounded-full blur-xl"></div>
+
+            <div class="relative z-10">
+                <div class="w-24 h-24 bg-gradient-to-tr from-amber-400 to-yellow-300 rounded-full mx-auto flex items-center justify-center text-5xl shadow-xl border-4 border-white mb-4 animate-bounce">
+                    🏆
+                </div>
+
+                <span class="bg-amber-100 text-amber-800 text-xs font-black px-3 py-1 rounded-full uppercase">遊戲完美通關</span>
+                <h3 class="text-2xl font-black text-gray-800 mt-2">恭喜特工小英雄！</h3>
+                <p class="text-gray-600 font-bold text-sm mt-1 mb-4">你已成功完成所有標點符號任務！</p>
+
+                <div class="bg-white rounded-2xl p-4 border border-amber-200 shadow-inner mb-6">
+                    <p class="text-xs text-gray-400 font-bold mb-1">榮譽稱號頒發</p>
+                    <p class="text-lg font-black text-amber-600">🎖️ 「標點符號超級特工」 🎖️</p>
+                    <div class="flex justify-center items-center gap-2 mt-3 text-amber-500 font-extrabold text-lg">
+                        <i class="fa-solid fa-star"></i>
+                        <span id="final-score">0</span> 分
+                    </div>
+                </div>
+
+                <button onclick="restartGame()" class="w-full bg-amber-500 hover:bg-amber-600 text-white font-black py-3 rounded-xl shadow-lg transition text-base">
+                    再次挑戰遊戲
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- JavaScript 遊戲邏輯 -->
+    <script>
+        // --- 題目數據庫 ---
+        const questions = [
+            // Level 1: 專名號大搜查
+            {
+                level: 1,
+                levelName: "第一關：專名號大搜查",
+                instruction: "特工任務：找出句子中的「人名、地名或機構名」，標上【專名號】！",
+                // tokens 陣列將句子分段，target 為正解類型 ('proper', 'book', null)
+                tokens: [
+                    { text: "小明", target: "proper" },
+                    { text: "和媽媽一起去", target: null },
+                    { text: "香港太空館", target: "proper" },
+                    { text: "參觀。", target: null }
+                ],
+                explanation: "「小明」是人名，「香港太空館」是機構/景點名稱，所以都要加上🔴專名號（底線）喔！"
+            },
+            {
+                level: 1,
+                levelName: "第一關：專名號大搜查",
+                instruction: "特工任務：找出句子中的「國家與城市名」，標上【專名號】！",
+                tokens: [
+                    { text: "中國", target: "proper" },
+                    { text: "的首都在", target: null },
+                    { text: "北京", target: "proper" },
+                    { text: "。", target: null }
+                ],
+                explanation: "「中國」是國家名稱，「北京」是城市地名，因此兩個詞語都要標上🔴專名號。"
+            },
+            {
+                level: 1,
+                levelName: "第一關：專名號大搜查",
+                instruction: "特工任務：找出句子中的「人名與地名」，標上【專名號】！",
+                tokens: [
+                    { text: "李小龍", target: "proper" },
+                    { text: "是", target: null },
+                    { text: "香港", target: "proper" },
+                    { text: "著名的武術家。", target: null }
+                ],
+                explanation: "「李小龍」是著名武術家的人名，「香港」是地方名稱，都要標上🔴專名號。"
+            },
+
+            // Level 2: 書名號大搜查
+            {
+                level: 2,
+                levelName: "第二關：書名號大搜查",
+                instruction: "特工任務：找出句子中的「書名」，標上【書名號】！",
+                tokens: [
+                    { text: "這本", target: null },
+                    { text: "伊索寓言", target: "book" },
+                    { text: "非常有趣。", target: null }
+                ],
+                explanation: "「伊索寓言」是一本書的名稱，所以要用🔵書名號《 》括起來！"
+            },
+            {
+                level: 2,
+                levelName: "第二關：書名號大搜查",
+                instruction: "特工任務：找出句子中的「動畫電影名」，標上【書名號】！",
+                tokens: [
+                    { text: "弟弟最喜歡看", target: null },
+                    { text: "獅子王", target: "book" },
+                    { text: "這套動畫電影。", target: null }
+                ],
+                explanation: "「獅子王」是電影作品的名稱，電影名同樣需要使用🔵書名號《 》。"
+            },
+
+            // Level 3: 特工終極大考驗 (混合題)
+            {
+                level: 3,
+                levelName: "第三關：特工終極大考驗",
+                instruction: "終極任務：同時搜查句子中的【專名號】與【書名號】！",
+                tokens: [
+                    { text: "張老師", target: "proper" },
+                    { text: "在課堂上教我們朗讀", target: null },
+                    { text: "靜夜思", target: "book" },
+                    { text: "這首詩。", target: null }
+                ],
+                explanation: "「張老師」包含姓氏（人名）需用🔴專名號；「靜夜思」是古詩篇名，需用🔵書名號《 》。"
+            },
+            {
+                level: 3,
+                levelName: "第三關：特工終極大考驗",
+                instruction: "終極任務：同時搜查句子中的【人名】與【書名】！",
+                tokens: [
+                    { text: "陳小玲", target: "proper" },
+                    { text: "在圖書館借了", target: null },
+                    { text: "三國演義", target: "book" },
+                    { text: "這本書。", target: null }
+                ],
+                explanation: "「陳小玲」是人名（🔴專名號）；「三國演義」是著名的中國經典書籍（🔵書名號）。"
+            },
+            {
+                level: 3,
+                levelName: "第三關：特工終極大考驗",
+                instruction: "終極任務：找出句子中的國家與城市【專名號】！",
+                tokens: [
+                    { text: "我們一家人下個月會去", target: null },
+                    { text: "日本", target: "proper" },
+                    { text: "東京", target: "proper" },
+                    { text: "旅遊。", target: null }
+                ],
+                explanation: "「日本」是國家名，「東京」是城市名，兩者都是專有名詞，都要標上記號喔！"
+            }
+        ];
+
+        // --- 狀態變數 ---
+        let currentQuestionIndex = 0;
+        let selectedTool = 'proper'; // 'proper', 'book', 'eraser'
+        let userMarks = []; // 紀錄學生當前題目各 token 的標記: ['proper', null, 'book', ...]
+        let totalScore = 0;
+
+        // --- Web Audio 音效 (Tone.js) ---
+        let synth;
+
+        function initAudio() {
+            if (!synth) {
+                synth = new Tone.Synth().toDestination();
+            }
+        }
+
+        function playSound(type) {
+            try {
+                initAudio();
+                if (type === 'correct') {
+                    const now = Tone.now();
+                    synth.triggerAttackRelease("C5", "8n", now);
+                    synth.triggerAttackRelease("E5", "8n", now + 0.1);
+                    synth.triggerAttackRelease("G5", "8n", now + 0.2);
+                    synth.triggerAttackRelease("C6", "4n", now + 0.3);
+                } else if (type === 'wrong') {
+                    const now = Tone.now();
+                    synth.triggerAttackRelease("G3", "8n", now);
+                    synth.triggerAttackRelease("E3", "4n", now + 0.15);
+                } else if (type === 'click') {
+                    synth.triggerAttackRelease("C4", "16n");
+                }
+            } catch (e) {
+                // 音效播放失敗時優雅忽略
+            }
+        }
+
+        // --- 遊戲初始化 ---
+        window.onload = function() {
+            selectTool('proper');
+            loadQuestion(0);
+        };
+
+        // --- 載入題目 ---
+        function loadQuestion(index) {
+            currentQuestionIndex = index;
+            const q = questions[index];
+
+            // 初始化用戶答案
+            userMarks = new Array(q.tokens.length).fill(null);
+
+            // 更新 UI 關卡資訊
+            document.getElementById('level-badge').innerText = `第 ${q.level} 關 ‧ 題 ${index + 1}/${questions.length}`;
+            document.getElementById('level-title').innerText = q.levelName;
+            document.getElementById('agent-instruction').innerText = q.instruction;
+
+            // 更新進度條
+            const progressPercent = ((index) / questions.length) * 100;
+            document.getElementById('progress-bar').style.width = `${progressPercent}%`;
+
+            // 渲染句子 Token
+            renderSentence();
+        }
+
+        // --- 渲染句子 Token ---
+        function renderSentence() {
+            const q = questions[currentQuestionIndex];
+            const container = document.getElementById('sentence-container');
+            container.innerHTML = '';
+
+            q.tokens.forEach((token, idx) => {
+                const span = document.createElement('span');
+                span.className = 'word-token';
+                span.innerText = token.text;
+
+                // 根據當前標記加上 CSS 樣式
+                if (userMarks[idx] === 'proper') {
+                    span.classList.add('mark-proper');
+                } else if (userMarks[idx] === 'book') {
+                    span.classList.add('mark-book');
+                }
+
+                // 點擊 Token 事件
+                span.onclick = () => onTokenClick(idx);
+
+                container.appendChild(span);
+            });
+        }
+
+        // --- 工具選擇 ---
+        function selectTool(tool) {
+            playSound('click');
+            selectedTool = tool;
+
+            // 清除所有工具按鈕的高亮
+            document.querySelectorAll('.tool-btn').forEach(btn => {
+                btn.classList.remove('tool-active', 'border-red-500', 'border-blue-500', 'border-gray-500', 'bg-red-50', 'bg-blue-50', 'bg-gray-50');
+            });
+
+            const toolProper = document.getElementById('tool-proper');
+            const toolBook = document.getElementById('tool-book');
+            const toolEraser = document.getElementById('tool-eraser');
+
+            if (tool === 'proper') {
+                toolProper.classList.add('tool-active', 'border-red-500', 'bg-red-50');
+            } else if (tool === 'book') {
+                toolBook.classList.add('tool-active', 'border-blue-500', 'bg-blue-50');
+            } else if (tool === 'eraser') {
+                toolEraser.classList.add('tool-active', 'border-gray-500', 'bg-gray-50');
+            }
+        }
+
+        // --- 點擊詞語 Token 標記邏輯 ---
+        function onTokenClick(index) {
+            playSound('click');
+            if (selectedTool === 'eraser') {
+                userMarks[index] = null;
+            } else {
+                userMarks[index] = selectedTool;
+            }
+            renderSentence();
+        }
+
+        // --- 清空目前題目的標記 ---
+        function resetCurrentQuestion() {
+            playSound('click');
+            userMarks = new Array(questions[currentQuestionIndex].tokens.length).fill(null);
+            renderSentence();
+        }
+
+        // --- 核對答案 ---
+        function checkAnswer() {
+            const q = questions[currentQuestionIndex];
+            let isCorrect = true;
+
+            // 檢查每個 token 的標記是否與 target 完全一致
+            for (let i = 0; i < q.tokens.length; i++) {
+                const expected = q.tokens[i].target;
+                const actual = userMarks[i];
+                if (expected !== actual) {
+                    isCorrect = false;
+                    break;
+                }
+            }
+
+            // 顯示反饋 Modal
+            showFeedbackModal(isCorrect);
+        }
+
+        // --- 顯示反饋 Modal ---
+        function showFeedbackModal(isCorrect) {
+            const q = questions[currentQuestionIndex];
+            const modal = document.getElementById('modal-feedback');
+            const card = document.getElementById('feedback-card');
+            const iconContainer = document.getElementById('feedback-icon-container');
+            const title = document.getElementById('feedback-title');
+            const msg = document.getElementById('feedback-msg');
+            const explain = document.getElementById('feedback-explain');
+            const btnNext = document.getElementById('btn-next');
+
+            modal.classList.remove('hidden');
+            setTimeout(() => {
+                card.classList.remove('scale-95', 'opacity-0');
+                card.classList.add('scale-100', 'opacity-100');
+            }, 10);
+
+            if (isCorrect) {
+                playSound('correct');
+                createConfetti();
+
+                // 增加分數
+                totalScore += 10;
+                document.getElementById('score-display').innerText = totalScore;
+
+                iconContainer.className = "w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-inner bg-emerald-100 text-emerald-600";
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-check"></i>';
+                
+                title.innerText = "太棒了！特工小英雄！";
+                title.className = "text-2xl font-black mb-2 text-emerald-600";
+                
+                msg.innerText = "你準確無誤地標出了正確的標點符號！獲得 10 顆金星！";
+                explain.innerHTML = `<strong>💡 標點特工小解析：</strong><br>${q.explanation}`;
+
+                btnNext.onclick = () => {
+                    closeModal('modal-feedback');
+                    if (currentQuestionIndex + 1 < questions.length) {
+                        loadQuestion(currentQuestionIndex + 1);
+                    } else {
+                        showFinalBadge();
+                    }
+                };
+            } else {
+                playSound('wrong');
+
+                iconContainer.className = "w-20 h-20 rounded-full mx-auto flex items-center justify-center text-4xl mb-4 shadow-inner bg-rose-100 text-rose-600";
+                iconContainer.innerHTML = '<i class="fa-solid fa-circle-xmark"></i>';
+
+                title.innerText = "再試一次！特工小助手";
+                title.className = "text-2xl font-black mb-2 text-rose-600";
+
+                msg.innerText = "標記好像有一點小偏差喔！檢查一下是不是漏標了，或是選錯了工具？";
+                explain.innerHTML = `<strong>💡 溫馨提醒：</strong><br>${q.explanation}`;
+
+                btnNext.onclick = () => {
+                    closeModal('modal-feedback');
+                };
+            }
+        }
+
+        // --- 關閉 Modal ---
+        function closeModal(modalId) {
+            playSound('click');
+            const modal = document.getElementById(modalId);
+            if (modalId === 'modal-feedback') {
+                const card = document.getElementById('feedback-card');
+                card.classList.remove('scale-100', 'opacity-100');
+                card.classList.add('scale-95', 'opacity-0');
+                setTimeout(() => modal.classList.add('hidden'), 200);
+            } else {
+                modal.classList.add('hidden');
+            }
+        }
+
+        function openModal(modalId) {
+            playSound('click');
+            document.getElementById(modalId).classList.remove('hidden');
+        }
+
+        // --- 通關頒發徽章 ---
+        function showFinalBadge() {
+            playSound('correct');
+            document.getElementById('progress-bar').style.width = '100%';
+            document.getElementById('final-score').innerText = totalScore;
+            document.getElementById('modal-badge').classList.remove('hidden');
+            createConfetti();
+        }
+
+        // --- 重新開始遊戲 ---
+        function restartGame() {
+            playSound('click');
+            totalScore = 0;
+            document.getElementById('score-display').innerText = totalScore;
+            document.getElementById('modal-badge').classList.add('hidden');
+            loadQuestion(0);
+        }
+
+        // --- 慶祝彩色紙花特效 ---
+        function createConfetti() {
+            const colors = ['#f43f5e', '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6'];
+            for (let i = 0; i < 35; i++) {
+                const confetti = document.createElement('div');
+                confetti.className = 'confetti';
+                confetti.style.left = Math.random() * 100 + 'vw';
+                confetti.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                confetti.style.animationDuration = (Math.random() * 2 + 1.5) + 's';
+                confetti.style.opacity = Math.random();
+                document.body.appendChild(confetti);
+
+                setTimeout(() => confetti.remove(), 3000);
+            }
+        }
+    </script>
+</body>
+</html>
